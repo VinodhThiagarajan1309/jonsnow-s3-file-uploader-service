@@ -32,6 +32,7 @@ import com.twilio.twiml.VoiceResponse;
 /**
  * Created by vthiagarajan on 9/11/17.
  */
+@CrossOrigin(origins={"*"}, maxAge=3600L)
 @RestController
 public class JonSnowS3FileUploaderController {
 
