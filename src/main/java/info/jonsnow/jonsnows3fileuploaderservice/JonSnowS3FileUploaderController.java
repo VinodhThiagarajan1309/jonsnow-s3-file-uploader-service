@@ -1,19 +1,31 @@
 package info.jonsnow.jonsnows3fileuploaderservice;
 
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.SourceDataLine;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,6 +38,7 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.twilio.twiml.Play;
 import com.twilio.twiml.VoiceResponse;
@@ -58,9 +71,10 @@ public class JonSnowS3FileUploaderController {
     }
 
     @RequestMapping("/upload")
-    public String upload( @RequestParam("file") MultipartFile uploadfile ) {
+    public Map<String, String> upload( @RequestParam("file") MultipartFile uploadfile ) {
 
 
+        HashMap<String, String> map = new HashMap<>();
         logger.debug("Single file upload!");
 
         String uploadedUrl = "";
@@ -73,7 +87,8 @@ public class JonSnowS3FileUploaderController {
 
         }
 
-        return uploadedUrl;
+        map.put("s3Location",uploadedUrl);
+        return map;
 
     }
 
@@ -89,10 +104,6 @@ public class JonSnowS3FileUploaderController {
             }
 
             byte[] bytes = file.getBytes();
-            Path path = Paths.get(UPLOADED_FOLDER + file.getOriginalFilename());
-            Files.write(path, bytes);
-
-            File initialFile = new File(path.toString());
 
             AWSCredentials credentials = new BasicAWSCredentials("AKIAIGW5G7L4YACSLULQ", "sN8vLsCNAm8djXHoXUhxSe+KFLbApujL7ekma48O");
         /*Creating a client object using the credentials*/
@@ -100,12 +111,14 @@ public class JonSnowS3FileUploaderController {
 
             try {
                 System.out.println("Uploading a new object to S3 from a file\n");
-                //File files = new File(file);
 
                 String objectName = System.currentTimeMillis()+file.getOriginalFilename();
-
+                InputStream stream = new ByteArrayInputStream(bytes);
+                ObjectMetadata meta = new ObjectMetadata();
+                meta.setContentLength(bytes.length);
+                //meta.setContentType("audio/mpeg");
                 s3client.putObject(new PutObjectRequest(
-                    "jonsnow-vinodh", objectName, initialFile).withCannedAcl(CannedAccessControlList.PublicRead));
+                    "jonsnow-vinodh", objectName, stream,meta).withCannedAcl(CannedAccessControlList.PublicRead));
 
                 String s3DirectUrl = "https://s3.us-east-2.amazonaws.com/jonsnow-vinodh/"+objectName;
 
@@ -132,4 +145,41 @@ public class JonSnowS3FileUploaderController {
         }
         return null;
     }
+
+    private void rawplay(AudioFormat targetFormat,
+        AudioInputStream din)
+        throws IOException, LineUnavailableException
+    {
+        byte[] data = new byte[4096];
+        SourceDataLine line = getLine(targetFormat);
+        if (line != null)
+        {
+            // Start
+            line.start();
+            int nBytesRead = 0, nBytesWritten = 0;
+            while (nBytesRead != -1)
+            {
+                nBytesRead = din.read(data, 0, data.length);
+                if (nBytesRead != -1)
+                    nBytesWritten = line.write(data, 0, nBytesRead);
+            }
+            // Stop
+            line.drain();
+            line.stop();
+            line.close();
+            din.close();
+        }
+    }
+
+    private SourceDataLine getLine(AudioFormat audioFormat)
+        throws LineUnavailableException
+    {
+        SourceDataLine res = null;
+        DataLine.Info info =
+            new DataLine.Info(SourceDataLine.class, audioFormat);
+        res = (SourceDataLine) AudioSystem.getLine(info);
+        res.open(audioFormat);
+        return res;
+    }
+
 }
