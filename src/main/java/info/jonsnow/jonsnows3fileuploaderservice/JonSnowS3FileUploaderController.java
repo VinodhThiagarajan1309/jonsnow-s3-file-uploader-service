@@ -1,8 +1,10 @@
 package info.jonsnow.jonsnows3fileuploaderservice;
 
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -16,6 +18,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.aioobe.cloudconvert.CloudConvertService;
 import org.aioobe.cloudconvert.ConvertProcess;
 import org.aioobe.cloudconvert.ProcessStatus;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -31,6 +34,7 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.twilio.twiml.Play;
 import com.twilio.twiml.VoiceResponse;
@@ -83,8 +87,31 @@ public class JonSnowS3FileUploaderController {
 
     }
 
+    @RequestMapping("/uploadstream")
+    public Map<String, String> uploadStream( @RequestParam("file") MultipartFile uploadfile ) {
+
+        HashMap<String, String> map = new HashMap<>();
+        logger.debug("Single file upload!");
+
+        String uploadedUrl = "";
+
+        try {
+
+            uploadedUrl = streamToS3(Arrays.asList(uploadfile));
+
+        } catch (IOException e) {
+
+        }
+
+        map.put("s3Location",uploadedUrl);
+        return map;
+
+    }
+
     //save file
     private String saveUploadedFiles(List<MultipartFile> files) throws IOException {
+
+        FileUtils.cleanDirectory(new File(UPLOADED_FOLDER));
 
         for (MultipartFile file : files) {
 
@@ -146,6 +173,62 @@ public class JonSnowS3FileUploaderController {
 
                 s3client.putObject(new PutObjectRequest(
                     "jonsnow-vinodh", objectName, mp3FormatFile).withCannedAcl(CannedAccessControlList.PublicRead));
+
+                String s3DirectUrl = "https://s3.us-east-2.amazonaws.com/jonsnow-vinodh/"+objectName;
+                FileUtils.cleanDirectory(new File(UPLOADED_FOLDER));
+
+                return s3DirectUrl;
+
+            } catch (AmazonServiceException ase) {
+                System.out.println("Caught an AmazonServiceException, which " +
+                    "means your request made it " +
+                    "to Amazon S3, but was rejected with an error response" +
+                    " for some reason.");
+                System.out.println("Error Message:    " + ase.getMessage());
+                System.out.println("HTTP Status Code: " + ase.getStatusCode());
+                System.out.println("AWS Error Code:   " + ase.getErrorCode());
+                System.out.println("Error Type:       " + ase.getErrorType());
+                System.out.println("Request ID:       " + ase.getRequestId());
+            } catch (AmazonClientException ace) {
+                System.out.println("Caught an AmazonClientException, which " +
+                    "means the client encountered " +
+                    "an internal error while trying to " +
+                    "communicate with S3, " +
+                    "such as not being able to access the network.");
+                System.out.println("Error Message: " + ace.getMessage());
+            }
+        }
+        FileUtils.cleanDirectory(new File(UPLOADED_FOLDER));
+        return null;
+    }
+
+    //save file
+    private String streamToS3(List<MultipartFile> files) throws IOException {
+        System.out.println("Working Directory = " +
+            System.getProperty("user.dir"));
+
+        for (MultipartFile file : files) {
+
+            if (file.isEmpty()) {
+                continue; //next pls
+            }
+
+            byte[] bytes = file.getBytes();
+
+            AWSCredentials credentials = new BasicAWSCredentials("AKIAIGW5G7L4YACSLULQ", "sN8vLsCNAm8djXHoXUhxSe+KFLbApujL7ekma48O");
+        /*Creating a client object using the credentials*/
+            AmazonS3 s3client = new AmazonS3Client(credentials);
+
+            try {
+                System.out.println("Uploading a new object to S3 from a file\n");
+
+                String objectName = System.currentTimeMillis()+file.getOriginalFilename();
+                InputStream stream = new ByteArrayInputStream(bytes);
+                ObjectMetadata meta = new ObjectMetadata();
+                meta.setContentLength(bytes.length);
+                meta.setContentType("audio/mpeg");
+                s3client.putObject(new PutObjectRequest(
+                    "jonsnow-vinodh", objectName, stream,meta).withCannedAcl(CannedAccessControlList.PublicRead));
 
                 String s3DirectUrl = "https://s3.us-east-2.amazonaws.com/jonsnow-vinodh/"+objectName;
 
