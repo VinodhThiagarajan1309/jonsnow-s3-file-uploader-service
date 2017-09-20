@@ -108,6 +108,15 @@ public class JonSnowS3FileUploaderController {
 
     }
 
+    @RequestMapping("/makeTheCall")
+    private String makeTheCall() {
+
+
+
+        return null;
+
+    }
+
     //save file
     private String saveUploadedFiles(List<MultipartFile> files) throws IOException {
 
