@@ -50,10 +50,13 @@ public class JonSnowS3FileUploaderController {
     //Save the uploaded file to this folder
     private static String UPLOADED_FOLDER = "/jonsnow/fileuploader/";
 
+    /***
+     * Receives the recorded file url and produces Twilio based response.
+     */
     @RequestMapping("/playmessage")
     public void greeting(HttpServletResponse response, @RequestParam(value="recordFilePath") String recordFilePath){
 
-// Create a TwiML response and add our friendly message.
+    // Create a TwiML response and add our friendly message.
         VoiceResponse twiml = new VoiceResponse.Builder()
             .play(new Play.Builder(recordFilePath).build())
             .build();
@@ -66,6 +69,10 @@ public class JonSnowS3FileUploaderController {
         }
     }
 
+    /**
+     * Upload a file that will be in ogg format initially and then
+     * convert into mp3 and load that into S3 and get back a url.
+     */
     @RequestMapping("/upload")
     public Map<String, String> upload( @RequestParam("file") MultipartFile uploadfile ) {
 
@@ -76,7 +83,7 @@ public class JonSnowS3FileUploaderController {
 
         try {
 
-            uploadedUrl = saveUploadedFiles(Arrays.asList(uploadfile));
+            uploadedUrl = saveUploadedFiles(uploadfile);
 
         } catch (IOException e) {
 
@@ -87,6 +94,9 @@ public class JonSnowS3FileUploaderController {
 
     }
 
+    /**
+     * Upload a file that will be in Mp3 format and stream into S3 directly.
+     */
     @RequestMapping("/uploadstream")
     public Map<String, String> uploadStream( @RequestParam("file") MultipartFile uploadfile ) {
 
@@ -97,7 +107,7 @@ public class JonSnowS3FileUploaderController {
 
         try {
 
-            uploadedUrl = streamToS3(Arrays.asList(uploadfile));
+            uploadedUrl = streamToS3(uploadfile);
 
         } catch (IOException e) {
 
@@ -108,21 +118,31 @@ public class JonSnowS3FileUploaderController {
 
     }
 
+    /***
+     * Template method to make the actual call.
+     */
     @RequestMapping("/makeTheCall")
-    private String makeTheCall() {
+    private Map<String, String> makeTheCall(
+        @RequestParam("phoneNumber") String phoneNumber,
+        @RequestParam("recordedFileUrl") String recordedFileUrl,
+        @RequestParam("yyyymmddhhmmString") String yyyymmddhhmmString
+        ) {
 
+        HashMap<String, String> map = new HashMap<>();
 
+        map.put("message","Your Mokri is scheduled.");
+        map.put("input",phoneNumber+" "+recordedFileUrl+" "+yyyymmddhhmmString);
 
-        return null;
+        return map;
 
     }
 
-    //save file
-    private String saveUploadedFiles(List<MultipartFile> files) throws IOException {
+    /**
+     * Actual method in which files are handled.
+     * */
+    private String saveUploadedFiles(MultipartFile file) throws IOException {
 
         FileUtils.cleanDirectory(new File(UPLOADED_FOLDER));
-
-        for (MultipartFile file : files) {
 
             byte[] bytes = file.getBytes();
             Path path = Paths.get(UPLOADED_FOLDER + file.getOriginalFilename());
@@ -132,12 +152,12 @@ public class JonSnowS3FileUploaderController {
 
             File mp3FormatFile = new File(UPLOADED_FOLDER+file.getOriginalFilename().replace("ogg","mp3"));
 
-
             ////////////
             try {
 
                 // Create service object
-                CloudConvertService service = new CloudConvertService("Gb1Wz3RREV7eZKf-ts6xiZtgVHJtlWoXDLDbR_8R1ujr7G5qc_LGIfunAaJkrAmlndJbs8YCCC3f2OALTJL8Lw");
+                CloudConvertService service = new
+                    CloudConvertService("Gb1Wz3RREV7eZKf-ts6xiZtgVHJtlWoXDLDbR_8R1ujr7G5qc_LGIfunAaJkrAmlndJbs8YCCC3f2OALTJL8Lw");
 
                 // Create conversion process
                 ConvertProcess process = service.startProcess("ogg", "mp3");
@@ -160,7 +180,6 @@ public class JonSnowS3FileUploaderController {
                 }
 
                 // Download result
-                //File mp3FormatFile = new File("/Users/vthiagarajan/Downloads/DONT_DELETE_REPOS/jonsnow-s3-file-uploader-service/src/main/aal.mp3");
                 service.download(status.output.url, mp3FormatFile);
 
                 // Clean up
@@ -206,21 +225,18 @@ public class JonSnowS3FileUploaderController {
                     "such as not being able to access the network.");
                 System.out.println("Error Message: " + ace.getMessage());
             }
-        }
+
         FileUtils.cleanDirectory(new File(UPLOADED_FOLDER));
         return null;
     }
 
+    /**
+     * Stream the actual file to S3.
+     * */
     //save file
-    private String streamToS3(List<MultipartFile> files) throws IOException {
+    private String streamToS3(MultipartFile file) throws IOException {
         System.out.println("Working Directory = " +
             System.getProperty("user.dir"));
-
-        for (MultipartFile file : files) {
-
-            if (file.isEmpty()) {
-                continue; //next pls
-            }
 
             byte[] bytes = file.getBytes();
 
@@ -261,7 +277,7 @@ public class JonSnowS3FileUploaderController {
                     "such as not being able to access the network.");
                 System.out.println("Error Message: " + ace.getMessage());
             }
-        }
+
         return null;
     }
 
