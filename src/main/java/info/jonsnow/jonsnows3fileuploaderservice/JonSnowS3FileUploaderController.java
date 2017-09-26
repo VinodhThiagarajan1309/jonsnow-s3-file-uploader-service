@@ -307,7 +307,7 @@ public class JonSnowS3FileUploaderController {
                 ).setMachineDetection("DetectMessageEnd")
                     .setMachineDetectionTimeout(5);
 
-            // Make the call in 5 sec
+            // Make the call in 2 sec
             new java.util.Timer().schedule(
                 new java.util.TimerTask() {
                     @Override
@@ -319,10 +319,6 @@ public class JonSnowS3FileUploaderController {
                 },
                 2000
             );
-
-
-
-
         } catch (URISyntaxException e) {
             System.err.println("womp womp");
             System.exit(1);
