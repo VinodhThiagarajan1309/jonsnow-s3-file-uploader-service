@@ -305,7 +305,7 @@ public class JonSnowS3FileUploaderController {
                     new PhoneNumber("(682) 200-8898"),
                     new URI("http://vinodh.adaptainer.io/services/playmessage?recordFilePath="+recordedUrl)
                 ).setMachineDetection("DetectMessageEnd")
-                    .setMachineDetectionTimeout(4);
+                    .setMachineDetectionTimeout(5);
 
             // Make the call in 5 sec
             new java.util.Timer().schedule(
@@ -317,7 +317,7 @@ public class JonSnowS3FileUploaderController {
                         System.out.println(call.getStatus().toString());
                     }
                 },
-                5000
+                2000
             );
 
 
