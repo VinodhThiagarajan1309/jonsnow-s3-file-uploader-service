@@ -5,12 +5,12 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletResponse;
@@ -36,8 +36,12 @@ import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.twilio.rest.api.v2010.account.Call;
+import com.twilio.rest.api.v2010.account.CallCreator;
+import com.twilio.sdk.Twilio;
 import com.twilio.twiml.Play;
 import com.twilio.twiml.VoiceResponse;
+import com.twilio.type.PhoneNumber;
 /**
  * Created by vthiagarajan on 9/11/17.
  */
@@ -49,6 +53,10 @@ public class JonSnowS3FileUploaderController {
 
     //Save the uploaded file to this folder
     private static String UPLOADED_FOLDER = "/jonsnow/fileuploader/";
+    // Find your Account Sid and Token at twilio.com/user/account
+    public static final String ACCOUNT_SID = "ACe9bd589acf25766773e0eec2f1f99cfb";
+    public static final String AUTH_TOKEN = "ef3a04b85d073b19c6dff0cf478a5d63";
+
 
     /***
      * Receives the recorded file url and produces Twilio based response.
@@ -128,7 +136,11 @@ public class JonSnowS3FileUploaderController {
         @RequestParam("yyyymmddhhmmString") String yyyymmddhhmmString
         ) {
 
+        logger.info("Recorder File Url" + recordedFileUrl);
+        logger.info("phoneNumber" + phoneNumber);
         HashMap<String, String> map = new HashMap<>();
+
+        callThem(phoneNumber,recordedFileUrl);
 
         map.put("message","Your Mokri is scheduled.");
         map.put("input",phoneNumber+" "+recordedFileUrl+" "+yyyymmddhhmmString);
@@ -279,6 +291,42 @@ public class JonSnowS3FileUploaderController {
             }
 
         return null;
+    }
+
+    public void callThem(String phoneNumber, String recordedUrl) {
+        com.twilio.Twilio.init("ACe9bd589acf25766773e0eec2f1f99cfb", "ef3a04b85d073b19c6dff0cf478a5d63");
+
+        try {
+
+            CallCreator creator =
+                Call.creator(
+                    ACCOUNT_SID,
+                    new PhoneNumber(phoneNumber),
+                    new PhoneNumber("(682) 200-8898"),
+                    new URI("http://vinodh.adaptainer.io/services/playmessage?recordFilePath="+recordedUrl)
+                ).setMachineDetection("DetectMessageEnd")
+                    .setMachineDetectionTimeout(4);
+
+            // Make the call in 5 sec
+            new java.util.Timer().schedule(
+                new java.util.TimerTask() {
+                    @Override
+                    public void run() {
+                        Call call = creator.create();
+                        System.out.println(call.getSid());
+                        System.out.println(call.getStatus().toString());
+                    }
+                },
+                5000
+            );
+
+
+
+
+        } catch (URISyntaxException e) {
+            System.err.println("womp womp");
+            System.exit(1);
+        }
     }
 
 }
