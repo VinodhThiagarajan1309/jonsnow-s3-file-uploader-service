@@ -304,21 +304,13 @@ public class JonSnowS3FileUploaderController {
                     new PhoneNumber(phoneNumber),
                     new PhoneNumber("(682) 200-8898"),
                     new URI("http://vinodh.adaptainer.io/services/playmessage?recordFilePath="+recordedUrl)
-                ).setMachineDetection("DetectMessageEnd")
-                    .setMachineDetectionTimeout(5);
+                )/*.setMachineDetection("DetectMessageEnd")
+                    .setMachineDetectionTimeout(5)*/;
 
-            // Make the call in 2 sec
-            new java.util.Timer().schedule(
-                new java.util.TimerTask() {
-                    @Override
-                    public void run() {
-                        Call call = creator.create();
-                        System.out.println(call.getSid());
-                        System.out.println(call.getStatus().toString());
-                    }
-                },
-                2000
-            );
+                Call call = creator.create();
+                System.out.println(call.getSid());
+                System.out.println(call.getStatus().toString());
+
         } catch (URISyntaxException e) {
             System.err.println("womp womp");
             System.exit(1);
